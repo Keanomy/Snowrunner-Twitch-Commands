@@ -1,4 +1,5 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import ClassVar
 
 from pymem import Pymem
 from pymem.exception import *
@@ -30,6 +31,8 @@ class SRUtility:
 @dataclass
 class Fuel:
     pointer: float = None
+    base: int = 0x29AB148
+    offset: ClassVar[list[int]] = [0x20, 0x78, 0x598]
 
     @classmethod
     def get_current_fuel(cls) -> float | None:
@@ -65,8 +68,7 @@ class Fuel:
         try:
             SRUtility.hook_snowrunner()
             cls.pointer = SRUtility._GetPtrAddr(
-                base=SRUtility.mem.base_address + 0x029AE8A0,
-                offset=[0x230, 0x78, 0xD0, 0x598],
+                base=SRUtility.mem.base_address + cls.base, offset=cls.offset
             )
             SRUtility.mem.read_float(cls.pointer)
             return True
@@ -78,6 +80,8 @@ class Fuel:
 @dataclass
 class LoadCost:
     pointer: float = None
+    base: int = 0x2A0A980
+    offset: ClassVar[list[int]] = [0xA0, 0x168, 0x60, 0x460]
 
     @classmethod
     def get_current_loadcost(cls) -> int | None:
@@ -113,8 +117,7 @@ class LoadCost:
         try:
             SRUtility.hook_snowrunner()
             cls.pointer = SRUtility._GetPtrAddr(
-                base=SRUtility.mem.base_address + 0x02A083D0,
-                offset=[0xA0, 0x168, 0x5A0],
+                base=SRUtility.mem.base_address + cls.base, offset=cls.offset
             )
             SRUtility.mem.read_float(cls.pointer)
             return True
