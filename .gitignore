@@ -1,3 +1,9 @@
 .config.json
 user_token.json
 test.py
+.vscode
+build
+dist
+__pycache__
+*.spec
+.venv
