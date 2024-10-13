@@ -5,7 +5,7 @@ from typing import Awaitable, Callable, Optional
 from twitchAPI.chat import ChatCommand
 from twitchAPI.chat.middleware import BaseCommandMiddleware
 
-from snowrunner import SRHack
+import snowrunner.SRHack as SRHack
 
 
 class UserCooldown(BaseCommandMiddleware):
@@ -47,12 +47,13 @@ class SnowrunnerActive(BaseCommandMiddleware):
         self.execute_blocked_handler = execute_blocked_handler
 
     async def can_execute(self, cmd: ChatCommand) -> bool:
-        if cmd.name == "fuel":
-            return SRHack.Fuel.validate_pointer()
-        elif cmd.name == "loadcost":
-            return SRHack.Money.validate_pointer()
+        if cmd.name == "fuel" and SRHack.SRUtility.hook_snowrunner():
+            return SRHack.Fuel.validate_pointer() and SRHack.SRUtility.mem
+        elif cmd.name == "loadcost" and SRHack.SRUtility.hook_snowrunner():
+            return SRHack.LoadCost.validate_pointer() and SRHack.SRUtility.mem
         else:
-            return SRHack.SRUtility.hook_snowrunner()
+            print(f"Snowrunner not running.")
+            return SRHack.SRUtility.hook_snowrunner() and SRHack.SRUtility.mem
 
     async def was_executed(self, cmd: ChatCommand) -> None:
         pass

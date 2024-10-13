@@ -14,8 +14,7 @@ class SRUtility:
         try:
             SRUtility.mem = Pymem(SRUtility.exe_name)
             SRUtility.mem.base_address
-        except (ProcessNotFound, ProcessError, ProcessLookupError):
-            print(f"Snowrunner not running.")
+        except ProcessError:
             return False
         return True
 
@@ -39,7 +38,7 @@ class Fuel:
         try:
             cls.validate_pointer()
             fuel = SRUtility.mem.read_float(cls.pointer)
-            print(f"Fuel: {fuel}  | Pointer: {cls.pointer}")
+            # print(f"Fuel: {fuel}  | Pointer: {cls.pointer}")
             return fuel
         except MemoryReadError:
             print(f"Unable to read Snowrunner fuel pointer. ")
@@ -53,7 +52,7 @@ class Fuel:
         try:
             cls.validate_pointer()
             SRUtility.mem.write_float(cls.pointer, fuel)
-            print(f"Fuel: {fuel}  | Pointer: {cls.pointer}")
+            #    print(f"Fuel: {fuel}  | Pointer: {cls.pointer}")
             return True
 
         except MemoryWriteError:
@@ -72,7 +71,7 @@ class Fuel:
             )
             SRUtility.mem.read_float(cls.pointer)
             return True
-        except (MemoryReadError, MemoryWriteError):
+        except (MemoryReadError, MemoryWriteError, AttributeError):
             print(f"Unable to access fuel memory address.")
             return False
 
@@ -88,7 +87,7 @@ class LoadCost:
         try:
             cls.validate_pointer()
             cost = SRUtility.mem.read_int(cls.pointer)
-            print(f"Loadcost: {cost}  | Pointer: {cls.pointer}")
+            #    print(f"Loadcost: {cost}  | Pointer: {cls.pointer}")
             return cost
         except MemoryReadError:
             print(f"Unable to read Snowrunner loadcost pointer. ")
@@ -102,7 +101,7 @@ class LoadCost:
         try:
             cls.validate_pointer()
             SRUtility.mem.write_int(cls.pointer, cost)
-            print(f"Loadcost: {cost}  | Pointer: {cls.pointer}")
+            #     print(f"Loadcost: {cost}  | Pointer: {cls.pointer}")
             return True
 
         except MemoryWriteError:
@@ -121,7 +120,7 @@ class LoadCost:
             )
             SRUtility.mem.read_float(cls.pointer)
             return True
-        except (MemoryReadError, MemoryWriteError):
+        except (MemoryReadError, MemoryWriteError, AttributeError):
             print(f"Unable to access loadcost memory address.")
             return False
 
