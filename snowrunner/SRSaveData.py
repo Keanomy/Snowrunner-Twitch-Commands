@@ -30,8 +30,8 @@ def get_value(keys: list[str]) -> tuple | None:
 
 
 def get_game_directory() -> str:
-    docs_path = Config.get_configs()["SNOWRUNNER_SAVE_DIRECTORY"]
-    save_name = Config.get_configs()["SNOWRUNNER_SAVE_NAME"]
+    docs_path = Config.get_config()["SNOWRUNNER_SAVE_DIRECTORY"]
+    save_name = Config.get_config()["SNOWRUNNER_SAVE_NAME"]
     return path.abspath(path.join(get_my_documents(), docs_path, save_name))
 
 

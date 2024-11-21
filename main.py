@@ -1,16 +1,19 @@
 import asyncio
+import logging
+import logging.config
 
 from twitchAPI.chat import Chat, ChatMessage, EventData, JoinedEvent
 from twitchAPI.oauth import UserAuthenticationStorageHelper
 from twitchAPI.twitch import Twitch
 from twitchAPI.type import AuthScope, ChatEvent
 
-from commands import EventRegisters
+from commandRegister import EventRegisters
 from config import Config
 from menu import Menu
+from obs import OBS
 
-APP_ID = Config.get_configs()["APP_ID"]
-APP_SECRET = Config.get_configs()["APP_SECRET"]
+APP_ID = Config.get_config()["APP_ID"]
+APP_SECRET = Config.get_config()["APP_SECRET"]
 USER_SCOPES = [
     AuthScope.CHAT_READ,
     AuthScope.CHAT_EDIT,
@@ -21,12 +24,13 @@ USER_SCOPES = [
 
 async def on_ready(ready_event: EventData) -> None:
     print("Bot is running.")
-    await ready_event.chat.join_room(Config.get_configs()["TARGET_CHANNEL"])
+    await ready_event.chat.join_room(Config.get_config()["TARGET_CHANNEL"])
 
 
 async def on_message(msg: ChatMessage) -> None:
-    pass
-    print(f"{msg.user.name}: {msg.text}")
+    logger = logging.getLogger("ChatLog")
+    print(f"{msg.user.display_name}: {msg.text}")
+    logger.info(f"{msg.user.display_name}: {msg.text}")
 
 
 async def on_joined(join_event: JoinedEvent) -> None:
@@ -34,7 +38,12 @@ async def on_joined(join_event: JoinedEvent) -> None:
 
 
 async def startbot() -> None:
+    print("Starting ...")
+    Config.setup_logger()
     Config.check()
+
+    obs: OBS = OBS()
+    obs.connect()
 
     twitch: Twitch = await Twitch(APP_ID, APP_SECRET)
 

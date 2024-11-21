@@ -1,5 +1,6 @@
 import math
 from datetime import datetime
+from logging import getLogger
 from typing import Awaitable, Callable, Optional
 
 from twitchAPI.chat import ChatCommand
@@ -7,17 +8,20 @@ from twitchAPI.chat.middleware import BaseCommandMiddleware
 
 import snowrunner.SRHack as SRHack
 
+logger = getLogger("Middleware")
+
 
 class UserCooldown(BaseCommandMiddleware):
     _last_execution: dict[str, dict[str, datetime]] = {}
 
-    def __init__(self, cooldown_seconds):
+    def __init__(self, cooldown_seconds, command):
         self.cooldown = cooldown_seconds
+        self.command = command
 
     async def can_execute(self, cmd: ChatCommand) -> bool:
-        if self._last_execution.get(cmd.name) is None:
+        if self._last_execution.get(self.command) is None:
             return True
-        user_last_execution = self._last_execution[cmd.name].get(cmd.user.id)
+        user_last_execution = self._last_execution[self.command].get(cmd.user.id)
         if user_last_execution is None:
             return True
         since = (datetime.now() - user_last_execution).total_seconds()
@@ -33,14 +37,35 @@ class UserCooldown(BaseCommandMiddleware):
         return since >= self.cooldown
 
     async def was_executed(self, cmd: ChatCommand) -> None:
-        if self._last_execution.get(cmd.name) is None:
-            self._last_execution[cmd.name] = {}
-            self._last_execution[cmd.name][cmd.user.id] = datetime.now()
+        if self._last_execution.get(self.command) is None:
+            self._last_execution[self.command] = {}
+            self._last_execution[self.command][cmd.user.id] = datetime.now()
             return
-        self._last_execution[cmd.name][cmd.user.id] = datetime.now()
+        self._last_execution[self.command][cmd.user.id] = datetime.now()
 
 
-class SnowrunnerActive(BaseCommandMiddleware):
+class GlobalCooldown(BaseCommandMiddleware):
+    _last_execution: dict[str, dict[str, datetime]] = {}
+
+    def __init__(self, cooldown_seconds: int, command: str):
+        self.cooldown = cooldown_seconds
+        self.command = command
+
+    async def can_execute(self, cmd: ChatCommand) -> bool:
+        if self._last_execution.get(self.command) is None:
+            return True
+        last_execution: datetime = self._last_execution.get(self.command)
+        since: datetime = (datetime.now() - last_execution).total_seconds()
+        return since >= self.cooldown
+
+    async def was_executed(self, cmd: ChatCommand) -> None:
+        if self._last_execution.get(self.command) is None:
+            self._last_execution[self.command] = datetime.now()
+            return
+        self._last_execution[self.command] = datetime.now()
+
+
+class IsRunningSnowrunner(BaseCommandMiddleware):
     def __init__(
         self, execute_blocked_handler: Optional[Callable[[ChatCommand], Awaitable[None]]] = None
     ):
@@ -48,11 +73,34 @@ class SnowrunnerActive(BaseCommandMiddleware):
 
     async def can_execute(self, cmd: ChatCommand) -> bool:
         if cmd.name == "fuel" and SRHack.SRUtility.hook_snowrunner():
-            return SRHack.Fuel.validate_pointer() and SRHack.SRUtility.mem
+            return (
+                SRHack.Fuel.validate_fuel_pointer()
+                and SRHack.SRUtility.mem
+                and SRHack.Fuel.validate_tank_pointer()
+            )
         elif cmd.name == "loadcost" and SRHack.SRUtility.hook_snowrunner():
             return SRHack.LoadCost.validate_pointer() and SRHack.SRUtility.mem
         else:
-            print(f"Snowrunner not running.")
+            logger.debug(msg="Snowrunner not running.")
+            return SRHack.SRUtility.hook_snowrunner() and SRHack.SRUtility.mem
+
+    async def was_executed(self, cmd: ChatCommand) -> None:
+        pass
+
+
+class IsActiveSnowrunner(BaseCommandMiddleware):
+    def __init__(
+        self, execute_blocked_handler: Optional[Callable[[ChatCommand], Awaitable[None]]] = None
+    ):
+        self.execute_blocked_handler = execute_blocked_handler
+
+    async def can_execute(self, cmd: ChatCommand) -> bool:
+        if cmd.name == "fuel" and SRHack.SRUtility.hook_snowrunner():
+            return SRHack.Fuel.validate_fuel_pointer() and SRHack.SRUtility.mem
+        elif cmd.name == "loadcost" and SRHack.SRUtility.hook_snowrunner():
+            return SRHack.LoadCost.validate_pointer() and SRHack.SRUtility.mem
+        else:
+            logger.debug(msg="Snowrunner not running.")
             return SRHack.SRUtility.hook_snowrunner() and SRHack.SRUtility.mem
 
     async def was_executed(self, cmd: ChatCommand) -> None:

@@ -1,3 +1,5 @@
+import os
+
 from twitchAPI.chat import Chat
 from twitchAPI.twitch import Twitch
 
@@ -8,12 +10,11 @@ class Menu:
     async def startup(twitch: Twitch, chat: Chat):
         try:
             user_input = input(
-                r"""
+                """
 ------------------------
 Press ENTER to exit
-Type MENU for user menu
 ------------------------
-"""
+"""  # Type MENU for user menu
             )
             if user_input:
                 menu_input = await Menu.menu()
