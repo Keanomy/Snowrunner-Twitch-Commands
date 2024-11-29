@@ -1,3 +1,4 @@
+from functools import partial
 from typing import Any, List
 
 from twitchAPI.chat import Chat
@@ -6,13 +7,16 @@ import snowrunner.SRCommands as SR
 from config import Config
 from custommiddleware import *
 from MiscCommands import MiscCommands
+from obs import OBS
 from snowrunner.SRSaveData import post_money, post_save_data
 
 
 class EventRegisters:
-    def register_custom_events(chat: Chat):
+    def register_custom_events(chat: Chat, obs: OBS):
         # Winch
         EventRegisters.winch_command(chat)
+        # Speed
+        EventRegisters.speed_command(chat, obs)
         # HandBreak
         EventRegisters.handbrake_command(chat)
         # Horn
@@ -26,7 +30,7 @@ class EventRegisters:
         # Timeout Roulette
         EventRegisters.timeout_roulette(chat)
         # Fuel Roulette
-        EventRegisters.sr_fuel_roulette(chat)
+        EventRegisters.sr_fuel_roulette(chat, obs)
         # Fuel Roulette Stats
         EventRegisters.sr_fuel_roulette_stats(chat)
 
@@ -77,12 +81,24 @@ class EventRegisters:
             chat.register_command("tööt", SR.horn, basic_cooldown)
             chat.register_command("töötti", SR.horn, basic_cooldown)
 
+    def speed_command(chat: Chat, obs: OBS) -> None:
+        basic_cooldown: List[Any] = [
+            GlobalCooldown(30, "speed"),
+            UserCooldown(300, "speed"),
+            IsRunningSnowrunner("speed"),
+        ]
+
+        if Config.get_config()["COMMANDS"]["Speed"]:
+            chat.register_command("speed", partial(SR.speed, obs=obs), basic_cooldown)
+            chat.register_command("boost", partial(SR.speed, obs=obs), basic_cooldown)
+
     def handbrake_command(
         chat: Chat,
     ) -> None:
         basic_cooldown: List[Any] = [
             GlobalCooldown(Config.get_config()["CHANNEL_COOLDOWN"], "brake"),
             UserCooldown(Config.get_config()["USER_COOLDOWN"], "brake"),
+            IsRunningSnowrunner("handbrake"),
         ]
 
         if Config.get_config()["COMMANDS"]["HandBreak"]:
@@ -106,31 +122,32 @@ class EventRegisters:
             chat.register_command("timeout", MiscCommands.random_timeout)
             chat.register_command("ban", MiscCommands.random_timeout)
 
-    def sr_fuel_roulette(chat: Chat) -> None:
+    def sr_fuel_roulette(chat: Chat, obs: OBS) -> None:
         if Config.command_is_active("Fuel_Roulette"):
+            command_name = "fuel"
             chat.register_command(
                 name="fuel",
-                handler=SR.fuel_roulette,
+                handler=partial(SR.fuel_roulette, obs=obs),
                 command_middleware=[
-                    UserCooldown(600, "fuel"),
-                    IsRunningSnowrunner(),
+                    UserCooldown(600, command_name),
+                    IsRunningSnowrunner(command_name),
                 ],
             )
 
     def sr_fuel_roulette_stats(chat: Chat):
         if Config.command_is_active("Fuel_Roulette_Stats"):
-
+            command_name = "fuelstats"
             chat.register_command(
                 name="fuelstats",
                 handler=SR.fuel_roulette_stats,
                 command_middleware=[
-                    IsRunningSnowrunner(),
+                    IsRunningSnowrunner(command_name),
                 ],
             )
             chat.register_command(
                 name="fs",
                 handler=SR.fuel_roulette_stats,
                 command_middleware=[
-                    IsRunningSnowrunner(),
+                    IsRunningSnowrunner(command_name),
                 ],
             )

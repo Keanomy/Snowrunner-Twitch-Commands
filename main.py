@@ -1,6 +1,14 @@
+"""
+NEEDED ENVIRONMENT VARIABLES:
+"TWITCH_APP_ID"
+"TWITCH_APP_SECRET"
+"OBS_WS_PASS"
+"""
+
 import asyncio
 import logging
 import logging.config
+import os
 
 from twitchAPI.chat import Chat, ChatMessage, EventData, JoinedEvent
 from twitchAPI.oauth import UserAuthenticationStorageHelper
@@ -12,8 +20,8 @@ from config import Config
 from menu import Menu
 from obs import OBS
 
-APP_ID = Config.get_config()["APP_ID"]
-APP_SECRET = Config.get_config()["APP_SECRET"]
+APP_ID, APP_SECRET = os.environ.get("TWITCH_APP_ID"), os.environ.get("TWITCH_APP_SECRET")
+
 USER_SCOPES = [
     AuthScope.CHAT_READ,
     AuthScope.CHAT_EDIT,
@@ -55,7 +63,7 @@ async def startbot() -> None:
     chat.register_event(ChatEvent.READY, on_ready)
     chat.register_event(ChatEvent.MESSAGE, on_message)
     chat.register_event(ChatEvent.JOINED, on_joined)
-    EventRegisters.register_custom_events(chat)
+    EventRegisters.register_custom_events(chat, obs)
 
     chat.start()
     await Menu.startup(twitch=twitch, chat=chat)

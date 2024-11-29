@@ -1,11 +1,13 @@
 import json
 import logging
 import logging.config
-import sys
+import os
 from datetime import date
 from logging import Logger
 from pathlib import Path
 from typing import Any
+
+os.environ.get("OBS_WS_PASS")
 
 
 class Config:
@@ -21,6 +23,7 @@ class Config:
                 "HandBreak": None,
                 "Horn": None,
                 "Lights": None,
+                "Speed": None,
                 "Fuel_Roulette": None,
                 "Fuel_Roulette_Stats": None,
                 "PostMoney": None,
@@ -33,9 +36,6 @@ class Config:
             "CHANNEL_COOLDOWN": None,
             "SNOWRUNNER_SAVE_DIRECTORY": "My Games/SnowRunner/base/storage/ec216826fe2f4ca4b55d84a631128619",
             "SNOWRUNNER_SAVE_NAME": "CompleteSave.dat",
-            "APP_ID": None,
-            "APP_SECRET": None,
-            "OBS-WEBSOCKET-PASSWORD": None,
         }
         try:
             with open(".config.json", "r") as file:
@@ -79,12 +79,8 @@ class Config:
         )
 
     def check() -> None:
-        if not Config.get_config()["TARGET_CHANNEL"]:
+        if not Config.get_config().get("TARGET_CHANNEL"):
             Config.update_config("TARGET_CHANNEL", input("What CHANNEL should we join?\n"))
-        if not Config.get_config()["APP_ID"]:
-            Config.update_config("APP_ID", input("Input you APP ID:\n"))
-        if not Config.get_config()["APP_ID"]:
-            Config.update_config("APP_SECRET", input("Input you APP SECRET:\n"))
 
     def command_is_active(str) -> bool:
         APP_CONFIG = Config.get_config()

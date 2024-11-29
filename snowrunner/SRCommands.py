@@ -1,5 +1,9 @@
+import asyncio
 import os
 import subprocess
+from datetime import datetime
+from email.mime import base
+from inspect import currentframe
 from logging import Logger, getLogger
 from random import Random
 
@@ -9,20 +13,20 @@ from twitchAPI.helper import first
 from twitchAPI.twitch import TwitchUser
 
 import snowrunner.SRHack as SRHack
-
-# fuel_stats: dict[str, dict[str, float]] = {
-#     "90476414": {"take": 300.0, "give": 425.0},
-#     "47592275": {"take": 101.0, "give": 52.0},
-#     "695428901": {"take": 0, "give": 41.0},
-#     "117914050": {"take": 250.0, "give": 250.0},
-#     "69563919": {"take": 0, "give": 28.0},
-#     "772056584": {"take": 179.0, "give": 231.0},
-#     "40455306": {"take": 39.0, "give": 38.0},
-#     "106802668": {"take": 0, "give": 28.0},pip
-# }
-
+from obs import OBS
 
 fuel_stats: dict[str, dict[str, float]] = {}
+# fuel_stats: dict[str, dict[str, float]] = {
+#     "117914050": {"take": 125.0, "give": 25.0},
+#     "47592275": {"take": 75.0, "give": 84.5},
+#     "471123622": {"take": 31.0, "give": 36.0},
+#     "90476414": {"take": 0, "give": 56.0},
+#     "1142518667": {"take": 25.0, "give": 0},
+#     "695428901": {"take": 44.0, "give": 75.0},
+#     "1049805589": {"take": 33.5, "give": 36.0},
+#     "40455306": {"take": 0, "give": 75.0},
+# }
+
 logger: Logger = getLogger("SnowRunner.Commands")
 ahk_exe: str = r"C:\Program Files\AutoHotkey\v2\AutoHotkey64.exe"
 
@@ -35,10 +39,8 @@ async def winch(cmd: ChatCommand) -> None:
 
 
 async def handbrake(cmd: ChatCommand) -> None:
-    if "snowrunner" in str.lower(getActiveWindowTitle()):
-        script: str = os.path.abspath(r"ahk\Break.ahk")
-        subprocess.call([ahk_exe, script])
-        print(f"Activated handbrake.")
+    SRHack.Handbrake.toggle()
+    print(f"Activated handbrake.")
 
 
 async def lights(cmd: ChatCommand) -> None:
@@ -55,50 +57,77 @@ async def horn(cmd: ChatCommand) -> None:
         print(f"Activated horn.")
 
 
-async def fuel_roulette(cmd: ChatCommand) -> None:
-    max_fuel: float = 50  # MAX FUEL ALLOWED
+async def speed(cmd: ChatCommand, obs: OBS) -> None:
+    base_power = SRHack.Power.get_power()
+    power_multiplier = 15
+    if not base_power:
+        logger.debug("Aborted power command, missing base_engine power.")
+        return
+    if "snowrunner" in str.lower(getActiveWindowTitle()):
+        obs.SetSourceFilterEnabled("Activate Speed", "Screen")
+    power = base_power * power_multiplier
+    logger.debug(f"Speed command triggered - Base:{base_power} | New:{power} ")
+    SRHack.Power.set_power(power)
+    await asyncio.sleep(3)
+    SRHack.Power.set_power(base_power)
 
-    if len(cmd.text.split()) > 1 and cmd.text.split()[1].isnumeric():
-        fuel: float = float(cmd.text.split()[1])  # CHECK IF SECOND VARIABLE IS A NUMBER
-        if abs(fuel) > max_fuel:  # IF FUEL IS ABOVE 50, SET TO 50
-            fuel: float = max_fuel
-    else:  # NO FUEL, DRAW RANDOM AMOUNT
+
+async def fuel_roulette(cmd: ChatCommand, obs: OBS) -> None:
+    max_fuel: float = 50
+    tank_size: float = SRHack.Fuel.get_tank_size()
+    current_fuel: float | None = SRHack.Fuel.get_current_fuel()
+    message_parts: list[str] = cmd.text.split()
+
+    if len(message_parts) > 1 and message_parts[1].isnumeric():
+        fuel: float = float(message_parts[1])
+        fuel = min(abs(fuel), max_fuel)
+    else:
         fuel: float = float(Random().randint(25, 50))
 
-    # CHECK IF FUEL TANK IS > 140 AND FUEL IS ABOVE 25 IF SO DIVIDE BY 2
-    if SRHack.Fuel.get_tank_size() < 140 and abs(fuel) > 25:
+    if tank_size < 140 and abs(fuel) > 25:
         fuel /= 2
 
-    fuel: float = Random().choice([fuel, -fuel])  # RANDOMIZE ADDING OR REMOVING
-    current_fuel: float | None = SRHack.Fuel.get_current_fuel()  # GET CURRENT FUEL
+    fuel *= Random().choice([1, -1])
+
     if current_fuel == None:
-        print("fuck.")  # WE FUCKED UP
+        print("fuck.")
         return
 
-    act_fuel: float = current_fuel - fuel
-    if act_fuel < 0:
-        act_fuel: float = 0
+    act_fuel: float = current_fuel + fuel
 
-    SRHack.Fuel.set_current_fuel(float(act_fuel))
-    print(f"Original fuel: {current_fuel}, New: {act_fuel} added/removed: {-fuel}.")
+    print(f"Original fuel: {current_fuel}, New: {act_fuel} added/removed: {fuel}.")
     logger.debug(
-        f"USER: {cmd.user.id} - Original fuel: {current_fuel}, New: {act_fuel} added/removed: {-fuel}."
+        f"USER: {cmd.user.id} - Original fuel: {current_fuel}, New: {act_fuel} added/removed: {fuel}."
     )
 
     if fuel_stats.get(cmd.user.id) is None:
         fuel_stats[cmd.user.id] = {"take": 0, "give": 0}
 
     if fuel > 0:
-        await cmd.reply(f"{cmd.user.display_name} stole {round(abs(fuel))} fuel. FeelsGoodMan")
-        fuel_stats.get(cmd.user.id)["take"] += abs(fuel)
-    elif fuel < 0:
+        overflow: float = max(0, act_fuel - tank_size)
+        fuel_stats[cmd.user.id]["give"] += max(0, fuel - overflow)
         await cmd.reply(f"{cmd.user.display_name} gave {round(abs(fuel))} fuel. Kappa")
-        fuel_stats.get(cmd.user.id)["give"] += abs(fuel)
-        logger.info(f"{cmd.user.id}:{cmd.user.name} Fuel: {round(abs(fuel))}")
+        logger.info(f"{cmd.user.id}:{cmd.user.name} gave {round(abs(fuel))} fuel.")
+    elif fuel < 0:
+        overflow: float = max(0, abs(fuel) - max(0, current_fuel))
+        fuel_stats[cmd.user.id]["take"] += abs(fuel) - overflow
+        await cmd.reply(f"{cmd.user.display_name} stole {round(abs(fuel))} fuel. FeelsGoodMan")
     else:
         await cmd.reply(
-            f"{cmd.user.display_name} wasted the cooldown, gambling {fuel} fuel for nothing. NotLikeThis"
+            f"{cmd.user.display_name} wasted the cooldown, gambling 0 fuel for nothing. NotLikeThis"
         )
+        return
+    step = 1 if fuel > 0 else -1
+    Activate_overlay = SRHack.SRUtility.is_in_game()
+    arrow = "Fuel Up" if step == 1 else "Fuel Down"
+    if Activate_overlay:
+        obs.SetSceneItemEnabled("Game capture", arrow, True)
+    for _ in range(abs(int(fuel))):
+        current_fuel += step
+        SRHack.Fuel.set_current_fuel(current_fuel)
+        await asyncio.sleep(0.2)
+    if Activate_overlay:
+        obs.SetSceneItemEnabled("Game capture", arrow, False)
 
 
 async def fuel_roulette_stats(cmd: ChatCommand):

@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from logging import Logger, getLogger
+from random import getstate
 from typing import ClassVar
 
 from pymem import Pymem
@@ -29,6 +30,15 @@ class SRUtility:
                 addr = SRUtility.mem.read_longlong(addr + i)
         return addr + offset[-1]
 
+    @classmethod
+    def is_in_game(cls) -> bool:
+        if not cls.mem:
+            cls.hook_snowrunner()
+        base_address: int = 0x29AF898
+        offset: list[int] = [0x2C]
+        pointer: float = cls.mem.resolve_offsets(base_address, offset)
+        return not cls.mem.read_bool(pointer)
+
 
 @dataclass
 class Fuel:
@@ -44,7 +54,6 @@ class Fuel:
     @classmethod
     def get_current_fuel(cls) -> float | None:
         try:
-            cls.validate_fuel_pointer()
             fuel = SRUtility.mem.read_float(cls.fuel_pointer)
             return fuel
         except MemoryReadError:
@@ -57,7 +66,6 @@ class Fuel:
     @classmethod
     def set_current_fuel(cls, fuel: float) -> bool:
         try:
-            cls.validate_fuel_pointer()
             SRUtility.mem.write_float(cls.fuel_pointer, fuel)
             return True
 
@@ -73,9 +81,6 @@ class Fuel:
         try:
             SRUtility.hook_snowrunner()
             cls.fuel_pointer = SRUtility.mem.resolve_offsets(cls.base, cls.fuel_offset)
-            # cls.fuel_pointer = SRUtility._GetPtrAddr(
-            #     base=SRUtility.mem.base_address + cls.base, offset=cls.fuel_offset
-            # )
             SRUtility.mem.read_float(cls.fuel_pointer)
             return True
         except (MemoryReadError, MemoryWriteError, AttributeError):
@@ -86,7 +91,6 @@ class Fuel:
     @classmethod
     def get_tank_size(cls) -> float:
         try:
-            cls.validate_tank_pointer()
             tank_size = SRUtility.mem.read_float(cls.tank_pointer)
             return tank_size
         except MemoryReadError:
@@ -101,11 +105,6 @@ class Fuel:
         try:
             SRUtility.hook_snowrunner()
             cls.tank_pointer = SRUtility.mem.resolve_offsets(cls.base, cls.tank_offset)
-
-            # cls.tank_pointer = SRUtility._GetPtrAddr(
-            #     base=SRUtility.mem.base_address + cls.base, offset=cls.tank_offset
-            # )
-
             SRUtility.mem.read_float(cls.tank_pointer)
             return True
         except (MemoryReadError, MemoryWriteError, AttributeError):
@@ -122,7 +121,6 @@ class LoadCost:
     @classmethod
     def get_current_loadcost(cls) -> int | None:
         try:
-            cls.validate_pointer()
             cost = SRUtility.mem.read_int(cls.pointer)
             return cost
         except MemoryReadError:
@@ -135,7 +133,6 @@ class LoadCost:
     @classmethod
     def set_current_loadcost(cls, cost: int) -> bool:
         try:
-            cls.validate_pointer()
             SRUtility.mem.write_int(cls.pointer, cost)
             return True
 
@@ -151,14 +148,104 @@ class LoadCost:
         try:
             SRUtility.hook_snowrunner()
             cls.tank_pointer = SRUtility.mem.resolve_offsets(cls.base, cls.offset)
-
-            # cls.pointer = SRUtility._GetPtrAddr(
-            #     base=SRUtility.mem.base_address + cls.base, offset=cls.offset
-            # )
             SRUtility.mem.read_float(cls.pointer)
             return True
         except (MemoryReadError, MemoryWriteError, AttributeError):
             print(f"Validate issue: Unable to access loadcost memory address.")
+            return False
+
+
+@dataclass
+class Handbrake:
+    pointer: float = None
+    base: int = 0x029AF888
+    offset: ClassVar[list[int]] = [0x20, 0x80, 0x48]
+
+    @classmethod
+    def toggle(cls) -> None:
+        if cls.is_active():
+            cls.set_state(False)
+        else:
+            cls.set_state(True)
+
+    @classmethod
+    def is_active(cls) -> bool | None:
+        try:
+            state = SRUtility.mem.read_bool(cls.pointer)
+            return state
+        except MemoryReadError:
+            print(f"Unable to read Snowrunner Handbrake pointer. ")
+            return None
+        except TypeError:
+            print(f"Loadcost pointer is not valid.")
+            return None
+
+    @classmethod
+    def set_state(cls, state: bool) -> bool:
+        try:
+            SRUtility.mem.write_bool(cls.pointer, state)
+            return True
+
+        except MemoryWriteError:
+            print(f'Unable to print: "{state}" for Handbrake pointer. ')
+            return False
+        except TypeError:
+            print(f'Unable to print: "{state}" for Handbrake pointer.\nInvalid Type. ')
+            return False
+
+    @classmethod
+    def validate_pointer(cls) -> bool:
+        try:
+            SRUtility.hook_snowrunner()
+            cls.pointer = SRUtility.mem.resolve_offsets(cls.base, cls.offset)
+            SRUtility.mem.read_bool(cls.pointer)
+            return True
+        except (MemoryReadError, MemoryWriteError, AttributeError) as E:
+            print(f"Validate issue: Unable to access Handbrake memory address. {E}")
+            return False
+
+
+@dataclass
+class Power:
+    pointer: int = None
+    base: int = 0x029AF888
+    offset: ClassVar[list[int]] = [0x20, 0x80, 0x50]
+
+    @classmethod
+    def get_power(cls) -> float | None:
+        try:
+            power = SRUtility.mem.read_float(cls.pointer)
+            return power
+        except MemoryReadError:
+            print(f"Unable to read Snowrunner acceleration pointer. ")
+            return None
+        except TypeError:
+            print(f"Loadcost pointer is not valid.")
+            return None
+
+    @classmethod
+    def set_power(cls, power: float) -> bool:
+        try:
+            SRUtility.mem.write_float(cls.pointer, power)
+            return True
+
+        except MemoryWriteError:
+            print(f'Unable to print: "{power}" for acceleration pointer. ')
+            return False
+        except TypeError:
+            print(f'Unable to print: "{power}" for acceleration pointer.\nInvalid Type. ')
+            return False
+
+    @classmethod
+    def validate_pointer(cls) -> bool:
+        try:
+            SRUtility.hook_snowrunner()
+            cls.pointer = SRUtility.mem.resolve_offsets(cls.base, cls.offset)
+            value = SRUtility.mem.read_float(cls.pointer)
+            logger.debug(f"Reading Pointer: {cls.pointer} Value: {value} ")
+            return True
+        except (MemoryReadError, MemoryWriteError, AttributeError) as E:
+            logger.debug(f"Validate issue: Unable to access acceleration memory address. {E}")
             return False
 
 
@@ -168,10 +255,9 @@ class Lights:
     offset: ClassVar[list[int]] = [0xA0, 0x168, 0x60, 0x460]
 
     @classmethod
-    def get_state(cls) -> int | None:  # TODO: What returns?
+    def get_state(cls) -> int | None:
         try:
-            cls.validate_pointer()
-            cost = SRUtility.mem.read_int(cls.pointer)  # TODO: CHECK TYPE!
+            cost = SRUtility.mem.read_int(cls.pointer)
             return cost
         except MemoryReadError:
             print(f"Unable to read Snowrunner light state pointer. ")
@@ -185,10 +271,6 @@ class Lights:
         try:
             SRUtility.hook_snowrunner()
             cls.tank_pointer = SRUtility.mem.resolve_offsets(cls.base, cls.offset)
-
-            # cls.pointer = SRUtility._GetPtrAddr(
-            #     base=SRUtility.mem.base_address + cls.base, offset=cls.offset
-            # )
             SRUtility.mem.read_float(cls.pointer)
             return True
         except (MemoryReadError, MemoryWriteError, AttributeError):
