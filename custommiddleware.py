@@ -74,15 +74,11 @@ class IsRunningSnowrunner(BaseCommandMiddleware):
 
     async def can_execute(self, cmd: ChatCommand) -> bool:
         if cmd.name == "fuel" and SRHack.SRUtility.hook_snowrunner():
-            return (
-                SRHack.Fuel.validate_fuel_pointer()
-                and SRHack.SRUtility.mem
-                and SRHack.Fuel.validate_tank_pointer()
-            )
-        elif cmd.name == "loadcost" and SRHack.SRUtility.hook_snowrunner():
-            return SRHack.LoadCost.validate_pointer() 
+            return SRHack.Fuel.validate_fuel_pointer() and SRHack.SRUtility.mem and SRHack.Fuel.validate_tank_pointer()
+        # elif cmd.name == "loadcost" and SRHack.SRUtility.hook_snowrunner():
+        #     return SRHack.LoadCost.validate_pointer()
         elif self.command == "handbrake" and SRHack.SRUtility.hook_snowrunner():
-            return SRHack.Handbrake.validate_pointer() 
+            return SRHack.Handbrake.validate_pointer()
         elif self.command == "speed" and SRHack.SRUtility.hook_snowrunner():
             return SRHack.Power.validate_pointer()
         else:
@@ -100,16 +96,26 @@ class IsActiveSnowrunner(BaseCommandMiddleware):
 
     async def can_execute(self, cmd: ChatCommand) -> bool:
         if self.command == "fuel" and SRHack.SRUtility.hook_snowrunner():
-            return SRHack.Fuel.validate_fuel_pointer() and SRHack.SRUtility.mem
+            return SRHack.Fuel.validate_fuel_pointer()
         elif self.command == "loadcost" and SRHack.SRUtility.hook_snowrunner():
-            return SRHack.LoadCost.validate_pointer() and SRHack.SRUtility.mem
+            return SRHack.LoadCost.validate_pointer()
         elif self.command == "handbrake" and SRHack.SRUtility.hook_snowrunner():
-            return SRHack.Handbrake.validate_pointer() and SRHack.SRUtility.mem
+            return SRHack.Handbrake.validate_pointer()
         elif self.command == "speed" and SRHack.SRUtility.hook_snowrunner():
-            return SRHack.Power.validate_pointer() and SRHack.SRUtility.mem
+            return SRHack.Power.validate_pointer()
         else:
-            logger.debug(msg="Snowrunner not running.")
-            return SRHack.SRUtility.hook_snowrunner() and SRHack.SRUtility.mem
+            return SRHack.SRUtility.hook_snowrunner()
+
+    async def was_executed(self, cmd: ChatCommand) -> None:
+        pass
+
+
+class IsInControl(BaseCommandMiddleware):
+    def __init__(self):
+        pass
+
+    async def can_execute(self, cmd: ChatCommand):
+        return SRHack.SRUtility.hook_snowrunner() and SRHack.TruckControl.is_in_control()
 
     async def was_executed(self, cmd: ChatCommand) -> None:
         pass

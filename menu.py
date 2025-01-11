@@ -1,5 +1,3 @@
-import os
-
 from twitchAPI.chat import Chat
 from twitchAPI.twitch import Twitch
 

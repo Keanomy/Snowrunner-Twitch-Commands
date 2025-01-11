@@ -1,3 +1,4 @@
+import asyncio
 import base64
 import hashlib
 import json
@@ -6,7 +7,7 @@ import threading
 from logging import Logger, getLogger
 from typing import Any, Dict
 
-from websocket import WebSocket
+from websocket import WebSocket, WebSocketConnectionClosedException
 
 
 class OBS:
@@ -26,15 +27,16 @@ class OBS:
         self.ws = WebSocket()
         try:
             self.ws.connect(self.url)  # TODO: ERROR CHECKING ConnectionRefusedError -> Reconnect?
-        except ConnectionRefusedError:
+        except Exception:
             self.logger.debug("OBS not reachable.")
-            print("OBS not reachable.")
+            print("\033[31mOBS not reachable.\033[0m")
             return
 
         self._auth()
 
         self.listener = OBS.Listener(self.ws)
         self.listener.daemon = True
+        self.listener.name = "OBS.Listener"
         self.listener.start()
 
     def _auth(self):
@@ -44,17 +46,13 @@ class OBS:
                 "rpcVersion": 1,
             },
         }
-        message: Dict[str, Any] = json.loads(self.ws.recv())  # GET AUTH DETAILS
+        message: Dict[str, Any] = json.loads(self.ws.recv())
 
         if message["d"]["authentication"]:
             salt: str = message["d"]["authentication"]["salt"]
             challenge: str = message["d"]["authentication"]["challenge"]
-            secret = base64.b64encode(
-                hashlib.sha256((self.password + salt).encode("utf-8")).digest()
-            )
-            auth = base64.b64encode(
-                hashlib.sha256(secret + challenge.encode("utf-8")).digest()
-            ).decode()
+            secret = base64.b64encode(hashlib.sha256((self.password + salt).encode("utf-8")).digest())
+            auth = base64.b64encode(hashlib.sha256(secret + challenge.encode("utf-8")).digest()).decode()
             auth = {
                 "authentication": auth,
             }
@@ -63,7 +61,6 @@ class OBS:
                 "authentication": "",
             }
         reply["d"].update(auth)
-        # SEND IT
         self.ws.send(payload=json.dumps(reply))
 
     def call(self, request: dict[str, dict]) -> None:
@@ -78,10 +75,13 @@ class OBS:
         reply = self.listener._request_replies.pop(self.request_id)
         return reply
 
-    def close(self):
-        self.listener.running = False
-        self.ws.close()
-        print("Shutting down OBS Websocket...")
+    async def close(self) -> bool:
+        if self.listener:
+            self.listener.running = False
+            await asyncio.sleep(1)
+            self.ws.close()
+            print("Shutting down OBS Websocket...")
+        return True
 
     def SetSourceFilterEnabled(self, filter_name: str, source_name: str, visibility: bool = True):
         request: {str, dict} = {
@@ -137,7 +137,11 @@ class OBS:
 
         def _listeningLoop(self):
             while self.running:
-                data = self.ws.recv()
+                try:
+                    data = self.ws.recv()
+                except WebSocketConnectionClosedException:
+                    print("\033[31mLost OBS connection.\033[0m")
+                    self.running = False
                 if not data:
                     continue
                 json_data: dict[str, dict] = json.loads(data)
@@ -149,14 +153,11 @@ class OBS:
                 if requestId in self._request_tracker:
                     self._request_replies[requestId] = responseData
                     self._request_tracker[requestId].set()
-                    self.logger.debug(
-                        f"Added request to request tracker. ID: {requestId} - Status: {requestStatus} - Type: {requestType}"
-                    )
+                    self.logger.debug(f"Added request to request tracker. ID: {requestId} - Status: {requestStatus} - Type: {requestType}")
                 self.logger.debug(f"Received Event: {data}")
 
         async def reply_handler(self, id):
             response = None
             while not response:
                 response = self._request_tracker.get(id)
-            #  await asyncio.sleep(0.2)
             return response

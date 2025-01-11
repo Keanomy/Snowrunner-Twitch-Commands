@@ -57,6 +57,7 @@ class EventRegisters:
         chat: Chat,
     ) -> None:
         basic_cooldown: List[Any] = [
+            IsInControl(),
             GlobalCooldown(Config.get_config()["CHANNEL_COOLDOWN"], "lights"),
             UserCooldown(Config.get_config()["USER_COOLDOWN"], "lights"),
         ]
@@ -67,10 +68,7 @@ class EventRegisters:
     def horn_command(
         chat: Chat,
     ) -> None:
-        basic_cooldown: List[Any] = [
-            GlobalCooldown(Config.get_config()["CHANNEL_COOLDOWN"], "horn"),
-            UserCooldown(Config.get_config()["USER_COOLDOWN"], "horn"),
-        ]
+        basic_cooldown: List[Any] = [IsInControl()]
 
         if Config.get_config()["COMMANDS"]["Horn"]:
             chat.register_command("horn", SR.horn, basic_cooldown)
@@ -82,11 +80,7 @@ class EventRegisters:
             chat.register_command("töötti", SR.horn, basic_cooldown)
 
     def speed_command(chat: Chat, obs: OBS) -> None:
-        basic_cooldown: List[Any] = [
-            GlobalCooldown(30, "speed"),
-            UserCooldown(300, "speed"),
-            IsRunningSnowrunner("speed"),
-        ]
+        basic_cooldown: List[Any] = [GlobalCooldown(30, "speed"), UserCooldown(300, "speed"), IsRunningSnowrunner("speed"), IsInControl()]
 
         if Config.get_config()["COMMANDS"]["Speed"]:
             chat.register_command("speed", partial(SR.speed, obs=obs), basic_cooldown)
@@ -111,6 +105,7 @@ class EventRegisters:
         chat: Chat,
     ) -> None:
         basic_cooldown: List[Any] = [
+            IsInControl(),
             GlobalCooldown(Config.get_config()["CHANNEL_COOLDOWN"], "winch"),
             UserCooldown(Config.get_config()["USER_COOLDOWN"], "winch"),
         ]
@@ -129,8 +124,9 @@ class EventRegisters:
                 name="fuel",
                 handler=partial(SR.fuel_roulette, obs=obs),
                 command_middleware=[
-                    UserCooldown(600, command_name),
                     IsRunningSnowrunner(command_name),
+                    GlobalCooldown(10, command_name),
+                    UserCooldown(600, command_name),
                 ],
             )
 

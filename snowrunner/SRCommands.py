@@ -1,13 +1,8 @@
 import asyncio
-import os
-import subprocess
-from datetime import datetime
-from email.mime import base
-from inspect import currentframe
 from logging import Logger, getLogger
 from random import Random
 
-from pygetwindow import getActiveWindowTitle
+import keyboard
 from twitchAPI.chat import ChatCommand
 from twitchAPI.helper import first
 from twitchAPI.twitch import TwitchUser
@@ -16,26 +11,18 @@ import snowrunner.SRHack as SRHack
 from obs import OBS
 
 fuel_stats: dict[str, dict[str, float]] = {}
-# fuel_stats: dict[str, dict[str, float]] = {
-#     "117914050": {"take": 125.0, "give": 25.0},
-#     "47592275": {"take": 75.0, "give": 84.5},
-#     "471123622": {"take": 31.0, "give": 36.0},
-#     "90476414": {"take": 0, "give": 56.0},
-#     "1142518667": {"take": 25.0, "give": 0},
-#     "695428901": {"take": 44.0, "give": 75.0},
-#     "1049805589": {"take": 33.5, "give": 36.0},
-#     "40455306": {"take": 0, "give": 75.0},
-# }
+# fuel_stats: dict[str, dict[str, float]] = {"117914050": {"take": 100.0, "give": 0}, "1049805589": {"take": 0, "give": 26.420806884765625}}
 
 logger: Logger = getLogger("SnowRunner.Commands")
-ahk_exe: str = r"C:\Program Files\AutoHotkey\v2\AutoHotkey64.exe"
 
 
 async def winch(cmd: ChatCommand) -> None:
-    if "snowrunner" in str.lower(getActiveWindowTitle()):
-        script: str = os.path.abspath(r"ahk\Winch.ahk")
-        subprocess.call([ahk_exe, script])
-        print(f"Activated winch.")
+    SRHack.TruckControl.set_control(True)
+    keyboard.press_and_release("shift")
+    await asyncio.sleep(0.05)
+    keyboard.press_and_release("f")
+    SRHack.TruckControl.set_control(False)
+    print(f"Activated winch.")
 
 
 async def handbrake(cmd: ChatCommand) -> None:
@@ -44,32 +31,37 @@ async def handbrake(cmd: ChatCommand) -> None:
 
 
 async def lights(cmd: ChatCommand) -> None:
-    if "snowrunner" in str.lower(getActiveWindowTitle()):
-        script: str = os.path.abspath(r"ahk\Light.ahk")
-        subprocess.call([ahk_exe, script])
-        print(f"Toggled lights.")
+    SRHack.TruckControl.set_control(True)
+    await asyncio.sleep(0.05)
+    keyboard.press_and_release("shift")
+    keyboard.press_and_release("l")
+    SRHack.TruckControl.set_control(False)
+    print(f"Toggled lights.")
 
 
 async def horn(cmd: ChatCommand) -> None:
-    if "snowrunner" in str.lower(getActiveWindowTitle()):
-        script: str = os.path.abspath(r"ahk\Horn.ahk")
-        subprocess.call([ahk_exe, script])
-        print(f"Activated horn.")
+    SRHack.TruckControl.set_control(True)
+    keyboard.press_and_release("shift")
+    await asyncio.sleep(0.05)
+    keyboard.press_and_release("g")
+    SRHack.TruckControl.set_control(False)
+    print(f"Activated horn.")
 
 
 async def speed(cmd: ChatCommand, obs: OBS) -> None:
     base_power = SRHack.Power.get_power()
-    power_multiplier = 15
+    power_multiplier = 20
     if not base_power:
         logger.debug("Aborted power command, missing base_engine power.")
         return
-    if "snowrunner" in str.lower(getActiveWindowTitle()):
+    if SRHack.TruckControl.is_in_control():
         obs.SetSourceFilterEnabled("Activate Speed", "Screen")
     power = base_power * power_multiplier
     logger.debug(f"Speed command triggered - Base:{base_power} | New:{power} ")
     SRHack.Power.set_power(power)
     await asyncio.sleep(3)
     SRHack.Power.set_power(base_power)
+    print("Speed triggered.")
 
 
 async def fuel_roulette(cmd: ChatCommand, obs: OBS) -> None:
@@ -83,7 +75,6 @@ async def fuel_roulette(cmd: ChatCommand, obs: OBS) -> None:
         fuel = min(abs(fuel), max_fuel)
     else:
         fuel: float = float(Random().randint(25, 50))
-
     if tank_size < 140 and abs(fuel) > 25:
         fuel /= 2
 
@@ -96,29 +87,26 @@ async def fuel_roulette(cmd: ChatCommand, obs: OBS) -> None:
     act_fuel: float = current_fuel + fuel
 
     print(f"Original fuel: {current_fuel}, New: {act_fuel} added/removed: {fuel}.")
-    logger.debug(
-        f"USER: {cmd.user.id} - Original fuel: {current_fuel}, New: {act_fuel} added/removed: {fuel}."
-    )
+    logger.debug(f"USER: {cmd.user.id} - Original fuel: {current_fuel}, New: {act_fuel} added/removed: {fuel}.")
 
     if fuel_stats.get(cmd.user.id) is None:
         fuel_stats[cmd.user.id] = {"take": 0, "give": 0}
 
     if fuel > 0:
+        await cmd.reply(f"{cmd.user.display_name} gave {round(abs(fuel))} fuel. Kappa")
         overflow: float = max(0, act_fuel - tank_size)
         fuel_stats[cmd.user.id]["give"] += max(0, fuel - overflow)
-        await cmd.reply(f"{cmd.user.display_name} gave {round(abs(fuel))} fuel. Kappa")
         logger.info(f"{cmd.user.id}:{cmd.user.name} gave {round(abs(fuel))} fuel.")
     elif fuel < 0:
+        await cmd.reply(f"{cmd.user.display_name} stole {round(abs(fuel))} fuel. FeelsGoodMan")
         overflow: float = max(0, abs(fuel) - max(0, current_fuel))
         fuel_stats[cmd.user.id]["take"] += abs(fuel) - overflow
-        await cmd.reply(f"{cmd.user.display_name} stole {round(abs(fuel))} fuel. FeelsGoodMan")
     else:
-        await cmd.reply(
-            f"{cmd.user.display_name} wasted the cooldown, gambling 0 fuel for nothing. NotLikeThis"
-        )
+        await cmd.reply(f"{cmd.user.display_name} wasted the cooldown, gambling 0 fuel for nothing. NotLikeThis")
         return
+
     step = 1 if fuel > 0 else -1
-    Activate_overlay = SRHack.SRUtility.is_in_game()
+    Activate_overlay = SRHack.TruckControl.is_in_control()
     arrow = "Fuel Up" if step == 1 else "Fuel Down"
     if Activate_overlay:
         obs.SetSceneItemEnabled("Game capture", arrow, True)
@@ -168,7 +156,9 @@ async def total_fuel_roulette_stats(cmd: ChatCommand):
         give += value["give"]
         take += value["take"]
     if give < take:
-        message = f"Total: {abs(give) - abs(take)}L, collectively we lost {abs(take)}L and gained {abs(give)}L fuel. SPARE ME!! BigSad"
+        message = (
+            f"Total: {round(abs(give) - abs(take))}L, collectively we lost {round(abs(take))}L and gained {round(abs(give))}L fuel. SPARE ME!! BigSad"
+        )
     else:
-        message = f"Total: +{abs(give) - abs(take)}L, collectively we gained {abs(give)}L and lost {abs(take)}L fuel. Thank you! TwitchConHYPE"
+        message = f"Total: +{round(abs(give) - abs(take))}L, collectively we gained {round(abs(give))}L and lost {round(abs(take))}L fuel. Thank you! TwitchConHYPE"
     await cmd.reply(message)

@@ -17,8 +17,8 @@ from twitchAPI.type import AuthScope, ChatEvent
 
 from commandRegister import EventRegisters
 from config import Config
-from menu import Menu
 from obs import OBS
+from ui import GUI
 
 APP_ID, APP_SECRET = os.environ.get("TWITCH_APP_ID"), os.environ.get("TWITCH_APP_SECRET")
 
@@ -46,7 +46,7 @@ async def on_joined(join_event: JoinedEvent) -> None:
 
 
 async def startbot() -> None:
-    print("Starting ...")
+    print("\033[33mStarting ...\033[0m")
     Config.setup_logger()
     Config.check()
 
@@ -66,7 +66,10 @@ async def startbot() -> None:
     EventRegisters.register_custom_events(chat, obs)
 
     chat.start()
-    await Menu.startup(twitch=twitch, chat=chat)
+    GUI()
+    await obs.close()
+    await twitch.close()
+    chat.stop()
 
 
 if __name__ == "__main__":
