@@ -1,9 +1,10 @@
 import threading
 from logging import getLogger
-from test import test_pointers
 from time import sleep
 
 from customtkinter import CTk, CTkButton, CTkFont, CTkFrame, CTkLabel
+
+from snowrunner.SRHack import test_pointers
 
 logger = getLogger("GUI")
 

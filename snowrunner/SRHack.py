@@ -30,6 +30,29 @@ class SRUtility:
         return True
 
 
+def test_pointers() -> tuple[dict[str, bool], dict[str, bool], bool]:
+    success, fail = {}, {}
+    if SRUtility.hook_snowrunner():
+        sr_running = True
+        outcome = {
+            "Snowrunner": SRUtility.hook_snowrunner(),
+            "Control": TruckControl.validate_pointer(),
+            "Fuel": Fuel.validate_fuel_pointer(),
+            "Fuel Tank": Fuel.validate_tank_pointer(),
+            "HandBrake": Handbrake.validate_pointer(),
+            "Power": Power.validate_pointer(),
+        }
+
+        for mempoint, result in outcome.items():
+            if result:
+                success.setdefault(mempoint, result)
+            else:
+                fail.setdefault(mempoint, result)
+    else:
+        sr_running = False
+    return success, fail, sr_running
+
+
 @dataclass
 class TruckControl:
     pointer: int | None = None

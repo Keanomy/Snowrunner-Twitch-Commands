@@ -7,7 +7,6 @@ NEEDED ENVIRONMENT VARIABLES:
 
 import asyncio
 import logging
-import logging.config
 import os
 
 from twitchAPI.chat import Chat, ChatMessage, EventData, JoinedEvent
