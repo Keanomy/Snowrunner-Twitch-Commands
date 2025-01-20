@@ -20,11 +20,10 @@ class GUI:
         self.tk: CTk = CTk()
         self.tk.geometry("400x400")
         self.tk.resizable(False, False)
-        self.tk.grid()
         self.tk.title("Twitch SR Commands")
         self.memory_frame: GUI.Snowrunner = self.Snowrunner(main=self.tk)
         self.exit_button: CTkButton = CTkButton(width=300, height=25, master=self.tk, text="Exit", command=self.tk.quit)
-        self.exit_button.place(relx=0.5, rely=0.7, anchor="center")
+        self.exit_button.place(relx=0.5, rely=0.9, anchor="center")
         self.tk.mainloop()
 
     class Snowrunner:
