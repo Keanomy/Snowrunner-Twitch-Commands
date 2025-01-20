@@ -7,6 +7,7 @@ from twitchAPI.chat import ChatCommand
 from twitchAPI.helper import first
 from twitchAPI.twitch import TwitchUser
 
+import file_handler
 import snowrunner.SRHack as SRHack
 from obs import OBS
 
@@ -162,3 +163,9 @@ async def total_fuel_roulette_stats(cmd: ChatCommand):
     else:
         message = f"Total: +{round(abs(give) - abs(take))}L, collectively we gained {round(abs(give))}L and lost {round(abs(take))}L fuel. Thank you! TwitchConHYPE"
     await cmd.reply(message)
+
+
+def load_fuel_stats():
+    global fuel_stats
+    fuel_stats = file_handler.read_file("fuel_stats.json")
+    logger.debug(f"Loaded fuel stats: {fuel_stats}")

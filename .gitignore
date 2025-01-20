@@ -10,3 +10,4 @@ __pycache__
 .secrets.*
 logs
 logs/*
+fuel_stats.json
