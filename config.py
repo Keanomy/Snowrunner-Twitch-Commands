@@ -3,7 +3,6 @@ import logging
 import logging.config
 import os
 from datetime import date
-from logging import Logger
 from pathlib import Path
 from typing import Any
 
@@ -61,15 +60,7 @@ class Config:
     def setup_logger():
 
         dir = "./logs/"
-        Path.mkdir(Path(f"{dir}/chat_logs/"), exist_ok=True)
-        file_handler = logging.FileHandler(
-            f"{dir}/chat_logs/{date.today().strftime("%d%m%Y")}.log", encoding="utf-8"
-        )
-        file_handler.setFormatter(logging.Formatter("%(asctime)s | %(message)s"))
-        logger: Logger = logging.getLogger("ChatLog")
-        logger.setLevel(logging.INFO)
-        logger.addHandler(file_handler)
-        logger.propagate = False
+        Path.mkdir(Path(f"{dir}"), parents=True, exist_ok=True)
         logging.basicConfig(
             filename=f"{dir}{date.today().strftime("%d%m%Y")}.log",
             encoding="utf-8",
