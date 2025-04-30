@@ -12,23 +12,14 @@ from snowrunner.SRSaveData import post_money, post_save_data
 
 class EventRegisters:
     def register_custom_events(chat: Chat, obs: OBS):
-        # Winch
         EventRegisters.winch_command(chat)
-        # Speed
         EventRegisters.speed_command(chat, obs)
-        # HandBreak
         EventRegisters.handbrake_command(chat)
-        # Horn
         EventRegisters.horn_command(chat)
-        # Lights
         EventRegisters.lights_command(chat)
-        # Post Money
         EventRegisters.postmoney_command(chat)
-        # Generic Save
         EventRegisters.genericsave_command(chat)
-        # Fuel Roulette
         EventRegisters.sr_fuel_roulette(chat, obs)
-        # Fuel Roulette Stats
         EventRegisters.sr_fuel_roulette_stats(chat)
 
     def genericsave_command(chat: Chat) -> None:
@@ -44,7 +35,10 @@ class EventRegisters:
             chat.register_command("cash", post_money)
 
     def lights_command(chat: Chat) -> None:
-        basic_cooldown: List[Any] = [IsInControl()]
+        basic_cooldown: List[Any] = [
+            IsInControl(),
+            GlobalCooldown(20, "lights"),
+        ]
         if Config.get_config()["COMMANDS"]["Lights"]:
             chat.register_command("lights", SR.lights, basic_cooldown)
             chat.register_command("light", SR.lights, basic_cooldown)
@@ -77,6 +71,7 @@ class EventRegisters:
     def handbrake_command(chat: Chat) -> None:
         basic_cooldown: List[Any] = [
             IsRunningSnowrunner("handbrake"),
+            GlobalCooldown(20, "handbrake"),
         ]
         if Config.get_config()["COMMANDS"]["HandBreak"]:
             chat.register_command("brake", SR.handbrake, basic_cooldown)
@@ -87,8 +82,7 @@ class EventRegisters:
     def winch_command(chat: Chat) -> None:
         basic_cooldown: List[Any] = [
             IsInControl(),
-            GlobalCooldown(Config.get_config()["CHANNEL_COOLDOWN"], "winch"),
-            UserCooldown(Config.get_config()["USER_COOLDOWN"], "winch"),
+            GlobalCooldown(15, "winch"),
         ]
         if Config.command_is_active("Winch"):
             chat.register_command("winch", SR.winch, basic_cooldown)
@@ -101,8 +95,8 @@ class EventRegisters:
                 handler=partial(SR.fuel_roulette, obs=obs),
                 command_middleware=[
                     IsRunningSnowrunner(command_name),
-                    GlobalCooldown(10, command_name),
-                    UserCooldown(600, command_name),
+                    UserCooldown(60 * 1, command_name),
+                    # GlobalCooldown(1, command_name),
                 ],
             )
 

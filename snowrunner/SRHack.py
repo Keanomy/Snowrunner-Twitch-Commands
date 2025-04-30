@@ -11,7 +11,7 @@ logger: Logger = getLogger("SRHack")
 @dataclass
 class SRUtility:
     controls_base = 0x29AF898
-    truck_base = 0x29AF888
+    truck_base = 0x2A35BD0
     exe_name: str = "SnowRunner.exe"
     try:
         mem: Pymem | None = Pymem(exe_name)
@@ -22,7 +22,6 @@ class SRUtility:
     @classmethod
     def hook_snowrunner(cls) -> bool:
         try:
-            logger.debug("Attempting to hook snowrunner...")
             cls.mem: Pymem | None = Pymem(cls.exe_name)
         except ProcessError:
             logger.debug("Snowrunner not running.")
@@ -56,7 +55,7 @@ def test_pointers() -> tuple[dict[str, bool], dict[str, bool], bool]:
 @dataclass
 class TruckControl:
     pointer: int | None = None
-    offset: ClassVar[list[int]] = [0x2C]
+    offset: ClassVar[list[int]] = [0x2C]  # NOT USED
 
     @classmethod
     def is_in_control(cls) -> bool:
@@ -78,11 +77,11 @@ class TruckControl:
         try:
             if not SRUtility.mem:
                 SRUtility.hook_snowrunner()
-            cls.pointer = SRUtility.mem.resolve_offsets(SRUtility.controls_base, cls.offset)
+            # cls.pointer = SRUtility.mem.resolve_offsets(SRUtility.controls_base, cls.offset)
+            cls.pointer = SRUtility.mem.base_address + 0x2A5A3A5
             SRUtility.mem.read_float(cls.pointer)
-            logger.debug(f"Reading Pointer: {cls.pointer} {cls.__name__} successful.")
             return True
-        except (MemoryReadError, MemoryWriteError, AttributeError, TypeError):
+        except (MemoryReadError, MemoryWriteError, AttributeError, ProcessError):
             logger.debug(f"Validate issue: Unable to access truck control memory address.")
             return False
         except ProcessError:
@@ -94,10 +93,10 @@ class TruckControl:
 @dataclass
 class Fuel:
     fuel_pointer: float = None
-    fuel_offset: ClassVar[list[int]] = [0x20, 0x78, 0x598]
+    fuel_offset: ClassVar[list[int]] = [0x8, 0x78, 0x5E0]
 
     tank_pointer: float = None
-    tank_offset: ClassVar[list[int]] = [0x20, 0x78, 0x5A0]
+    tank_offset: ClassVar[list[int]] = [0x8, 0x78, 0x5E8]
 
     ###################### FUEL #########################
     @classmethod
@@ -141,7 +140,7 @@ class Fuel:
             cls.fuel_pointer = SRUtility.mem.resolve_offsets(SRUtility.truck_base, cls.fuel_offset)
             SRUtility.mem.read_float(cls.fuel_pointer)
             return True
-        except (MemoryReadError, MemoryWriteError, AttributeError):
+        except (MemoryReadError, MemoryWriteError, AttributeError, ProcessError):
             logger.debug(f"Validate issue: Unable to access fuel memory address.")
             return False
 
@@ -166,12 +165,10 @@ class Fuel:
         try:
             if not SRUtility.mem:
                 SRUtility.hook_snowrunner()
-            if not cls.tank_pointer:
-                logger.debug(f"Adding memory pointer for {cls.__name__} tank.".title())
             cls.tank_pointer = SRUtility.mem.resolve_offsets(SRUtility.truck_base, cls.tank_offset)
             SRUtility.mem.read_float(cls.tank_pointer)
             return True
-        except (MemoryReadError, MemoryWriteError, AttributeError, TypeError):
+        except (MemoryReadError, MemoryWriteError, AttributeError, ProcessError):
             logger.debug(f"Validate issue: Unable to access fuel tank memory address.")
             return False
 
@@ -225,7 +222,7 @@ class Fuel:
 @dataclass
 class Handbrake:
     pointer: float = None
-    offset: ClassVar[list[int]] = [0x20, 0x80, 0x48]
+    offset: ClassVar[list[int]] = [0x8, 0x80, 0x48]
 
     @classmethod
     def toggle(cls) -> None:
@@ -269,7 +266,6 @@ class Handbrake:
         try:
             if not SRUtility.mem:
                 SRUtility.hook_snowrunner()
-
             cls.pointer = SRUtility.mem.resolve_offsets(SRUtility.truck_base, cls.offset)
             SRUtility.mem.read_bool(cls.pointer)
             return True
@@ -281,7 +277,7 @@ class Handbrake:
 @dataclass
 class Power:
     pointer: int = None
-    offset: ClassVar[list[int]] = [0x20, 0x80, 0x50]
+    offset: ClassVar[list[int]] = [0x8, 0x80, 0x50]
 
     @classmethod
     def get_power(cls) -> float | None:

@@ -13,7 +13,7 @@ logger = getLogger("Middleware")
 class UserCooldown(BaseCommandMiddleware):
     _last_execution: dict[str, dict[str, datetime]] = {}
 
-    def __init__(self, cooldown_seconds, command):
+    def __init__(self, cooldown_seconds: int, command: str):
         self.cooldown = cooldown_seconds
         self.command = command
 
@@ -75,8 +75,6 @@ class IsRunningSnowrunner(BaseCommandMiddleware):
     async def can_execute(self, cmd: ChatCommand) -> bool:
         if cmd.name == "fuel" and SRHack.SRUtility.hook_snowrunner():
             return SRHack.Fuel.validate_fuel_pointer() and SRHack.SRUtility.mem and SRHack.Fuel.validate_tank_pointer()
-        # elif cmd.name == "loadcost" and SRHack.SRUtility.hook_snowrunner():
-        #     return SRHack.LoadCost.validate_pointer()
         elif self.command == "handbrake" and SRHack.SRUtility.hook_snowrunner():
             return SRHack.Handbrake.validate_pointer()
         elif self.command == "speed" and SRHack.SRUtility.hook_snowrunner():

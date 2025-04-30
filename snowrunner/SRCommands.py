@@ -1,6 +1,8 @@
 import asyncio
+import random
+from asyncio import Task
 from logging import Logger, getLogger
-from random import Random
+from typing import Any
 
 import keyboard
 from twitchAPI.chat import ChatCommand
@@ -15,6 +17,7 @@ fuel_stats: dict[str, dict[str, float]] = {}
 # fuel_stats: dict[str, dict[str, float]] = {"117914050": {"take": 100.0, "give": 0}, "1049805589": {"take": 0, "give": 26.420806884765625}}
 
 logger: Logger = getLogger("SnowRunner.Commands")
+fuel_queue: list[Task] = []
 
 
 async def winch(cmd: ChatCommand) -> None:
@@ -51,7 +54,7 @@ async def horn(cmd: ChatCommand) -> None:
 
 async def speed(cmd: ChatCommand, obs: OBS) -> None:
     base_power = SRHack.Power.get_power()
-    power_multiplier = 20
+    power_multiplier = 25
     if not base_power:
         logger.debug("Aborted power command, missing base_engine power.")
         return
@@ -66,23 +69,35 @@ async def speed(cmd: ChatCommand, obs: OBS) -> None:
 
 
 async def fuel_roulette(cmd: ChatCommand, obs: OBS) -> None:
+    running_entry: Task | None = fuel_queue.pop(0) if fuel_queue else None
+    fuel_queue.append(asyncio.current_task())
+
+    if running_entry and not running_entry.done():
+        await cmd.reply(f"Added To Queue.")
+        await running_entry
+
     max_fuel: float = 50
     tank_size: float = SRHack.Fuel.get_tank_size()
     current_fuel: float | None = SRHack.Fuel.get_current_fuel()
     message_parts: list[str] = cmd.text.split()
 
-    if len(message_parts) > 1 and message_parts[1].isnumeric():
+    try:
+        if len(message_parts) == 1:
+            raise ValueError("No fuel amount provided.")
         fuel: float = float(message_parts[1])
         fuel = min(abs(fuel), max_fuel)
-    else:
-        fuel: float = float(Random().randint(25, 50))
+
+    except ValueError:
+        logger.debug("Invalid fuel amount.")
+        fuel: float = float(random.randint(25, 50))
+
     if tank_size < 140 and abs(fuel) > 25:
         fuel /= 2
 
-    fuel *= Random().choice([1, -1])
+    fuel *= random.choice([1, -1])
 
     if current_fuel == None:
-        print("fuck.")
+        print("Fuck.")
         return
 
     act_fuel: float = current_fuel + fuel
@@ -114,7 +129,7 @@ async def fuel_roulette(cmd: ChatCommand, obs: OBS) -> None:
     for _ in range(abs(int(fuel))):
         current_fuel += step
         SRHack.Fuel.set_current_fuel(current_fuel)
-        await asyncio.sleep(0.2)
+        await asyncio.sleep(0.18 + random.uniform(0, 0.05))
     if Activate_overlay:
         obs.SetSceneItemEnabled("Game capture", arrow, False)
 
